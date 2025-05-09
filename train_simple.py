@@ -32,7 +32,6 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-from utils.autoanchor import check_anchors
 
 import val as validate  # for end-of-epoch mAP
 from models.experimental import attempt_load
@@ -46,8 +45,6 @@ from utils.general import (
     check_amp,
     check_dataset,
     check_file,
-    check_git_info,
-    check_git_status,
     check_img_size,
     check_requirements,
     check_suffix,
@@ -63,7 +60,7 @@ from utils.general import (
     strip_optimizer,
     yaml_save,
 )
-from utils.loggers import LOGGERS, Loggers
+from utils.loggers import Loggers
 from utils.loss import ComputeLoss
 from utils.metrics import fitness
 from utils.torch_utils import (
@@ -74,7 +71,9 @@ from utils.torch_utils import (
     smart_optimizer,
 )
 
-GIT_INFO = check_git_info()
+
+# LOGGERS = ("csv", "tb", "wandb", "clearml", "comet")  # *.csv, TensorBoard, Weights & Biases, ClearML
+LOGGERS = ("wandb",)  # *.csv, TensorBoard, Weights & Biases, ClearML
 
 def train(hyp, opt, device, callbacks):
     """
@@ -245,7 +244,7 @@ def train(hyp, opt, device, callbacks):
     maps = np.zeros(nc)  # mAP per class
     results = (0, 0, 0, 0, 0, 0, 0)  # P, R, mAP@.5, mAP@.5-.95, val_loss(box, obj, cls)
     scheduler.last_epoch = start_epoch - 1  # do not move
-    scaler = torch.cuda.amp.GradScaler(enabled=amp)
+    scaler = torch.amp.GradScaler(enabled=amp)
     stopper, stop = EarlyStopping(patience=opt.patience), False
     compute_loss = ComputeLoss(model)  # init loss class
     callbacks.run("on_train_start")
@@ -286,7 +285,7 @@ def train(hyp, opt, device, callbacks):
                         x["momentum"] = np.interp(ni, xi, [hyp["warmup_momentum"], hyp["momentum"]])
 
             # Forward
-            with torch.cuda.amp.autocast(amp):
+            with torch.amp.autocast(device_type=device.type):
                 pred = model(imgs)  # forward
                 loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
                 if opt.quad:
@@ -361,7 +360,6 @@ def train(hyp, opt, device, callbacks):
                 "updates": ema.updates,
                 "optimizer": optimizer.state_dict(),
                 "opt": vars(opt),
-                "git": GIT_INFO,  # {remote, branch, commit} if a git repo
                 "date": datetime.now().isoformat(),
             }
 
@@ -466,7 +464,6 @@ def parse_opt(known=False):
 def main(opt, callbacks=Callbacks()):
     """Runs training or hyperparameter evolution with specified options and optional callbacks."""
     print_args(vars(opt))
-    check_git_status(repo="ircvlab/aue8088-pa2", branch="main")
     check_requirements(ROOT / "requirements.txt")
 
     opt.data, opt.cfg, opt.hyp, opt.weights, opt.project = (
