@@ -32,43 +32,55 @@
 └── train_simple.py
 ```
 
-### Preparation
+### Preparation (One time setting)
+
+- (Recommended) Set W&B environment variables
+  Plase find API Keys from https://wandb.ai/settings
+  ```bash
+  $ echo "export WANDB_API_KEY={YOUR_WANDB_API_KEY}" >> ~/.bashrc
+  $ echo "export WANDB_ENTITY={USER_NAME}" >> ~/.bashrc
+  $ echo "export WANDB_DIR={YOUR_WANDB_LOG_DIR}" >> ~/.bashrc
+  $ source ~/.bashrc
+
+  ```
+
+  Please refer this webpage for more details: https://docs.wandb.ai/ko/guides/track/environment-variables/
+
+
 - Prepare dataset (5.8GB, multispectral(visible + lwir) images with bbox labels)
   ```bash
-  $ wget https://hyu-aue8088.s3.ap-northeast-2.amazonaws.com/kaist-rgbt-aue8088.tar.gz
-  $ tar xzvf kaist-rgbt-aue8088.tar.gz
+  $ wget http://ircv-nas.hanyang.ac.kr:9088/downloads/kaist-rgbt-aue8088.tar
+  $ tar xvf kaist-rgbt-aue8088.tar
   ```
+
+
+- Clone base code repository (replace `ircvlab` to `YOUR_GITHUB_ACCOUNT` if you forked the repository)
+  ```bash
+  $ git clone https://github.com/ircvlab/aue8088
+  $ cd aue8088
+  ```
+
 
 - Create python virtual environment
   ```bash
-  $ python3 -m venv venv/aue8088-project
-  $ source venv/aue8088-project/bin/activate
+  $ python3 -m venv venv/aue8088
+  $ source venv/aue8088/bin/activate
   ```
 
 - Check whether the virtual environment set properly
-: The result should end with `venv/aue8088-project/bin/python`.
+: The result should end with `venv/aue8088/bin/python`.
 
   ```bash
   $ which python
   ```
 
-- Clone base code repository (replace `ircvlab` to `your account` if you forked the repository)
-  ```bash
-  $ git clone -b project https://github.com/ircvlab/aue8088-pa2
-  ```
-
-  If you already forked the above repository, then you can checkout to `project` branch.
-  ```bash
-  $ git fetch origin
-  $ git checkout -b project origin/project
-  ```
 
 - [!] Create a symbolic link for kaist-rgbt dataset
     - Assume the below folder structure
 
       ```bash
       ├── kaist-rgbt
-      ├── aue8088-pa2
+      ├── aue8088
       │   ├── data/
       │   ├── models/
       │   ├── train_simple.py
@@ -76,9 +88,8 @@
       │   └── README.md (this file)
       ```
 
-    - Follow below commands
+    - Use below commands
       ```bash
-      $ cd aue8088-pa2
       $ mkdir datasets
       $ ln -s $(realpath ../kaist-rgbt) datasets/kaist-rgbt
       $
@@ -88,6 +99,7 @@
   ```bash
   $ pip install -r requirements.txt
   ```
+
 
 ### Train
 - Command
@@ -101,12 +113,13 @@
     --weights yolov5n.pt \
     --workers 16 \
     --name yolov5n-rgbt \
+    --entity $WANDB_ENTITY \
     --rgbt \
     --single-cls
   ```
 
 ### Evaluation (eval.ai server)
-- On your labtop, go to the website: `http://166.104.168.170:8888/`
+- On your labtop, go to the website: `http://166.104.168.170:8888/` (Open: 5/23)
     - Only available in Hanyang internal network
     - If you're not in campus, please use VPN (https://vpn.hanyang.ac.kr)
         - It takes a day (or two) to get the permission from IT department.
