@@ -13,20 +13,25 @@ import json
 import matplotlib
 import numpy as np
 import os
-import pdb
 import sys
 import tempfile
 import traceback
-
-# matplotlib.use('Agg')
-# from matplotlib.patches import Polygon
-import matplotlib.pyplot as plt
+import warnings
 
 from coco import COCO
 from cocoeval import COCOeval, Params
 
 font = {'size': 22}
 matplotlib.rc('font', **font)
+import matplotlib.pyplot as plt
+
+TIME_OF_DAY = {
+    'Day': {'set00', 'set01', 'set02', 'set06', 'set07', 'set08'},
+    'Night': {'set03', 'set04', 'set05', 'set09', 'set10', 'set11'},
+}
+
+def get_time_of_day(image_filename):
+    return 'day' if any(s in image_filename for s in TIME_OF_DAY['Day']) else 'night'
 
 class KAISTParams(Params):
     """Params for KAISTPed evaluation api"""
@@ -523,18 +528,21 @@ class KAISTPedEval(COCOeval):
 
         for eval_result, method, color in zip(eval_results, methods, colors):
             mrs = 1 - eval_result['TP']
-            mean_s = np.log(mrs[mrs < 2])
-            mean_s = np.mean(mean_s)
-            mean_s = float(np.exp(mean_s) * 100)
+            if len(mrs[mrs < 2]):
+                mean_s = np.log(mrs[mrs < 2])
+                mean_s = np.mean(mean_s)
+                mean_s = float(np.exp(mean_s) * 100)
 
-            xx = eval_result['xx']
-            yy = eval_result['yy']
+                xx = eval_result['xx']
+                yy = eval_result['yy']
 
-            ax.plot(xx[0], yy[0], color=color, linewidth=3, label=f'{mean_s:.2f}%, {method}')
+                ax.plot(xx[0], yy[0], color=color, linewidth=3, label=f'{mean_s:.2f}%, {method}')
 
-        ax.set_yscale('log')
-        ax.set_xscale('log')
-        ax.legend()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            ax.set_yscale('log')
+            ax.set_xscale('log')
+            ax.legend()
 
         yt = [1, 5] + list(range(10, 60, 10)) + [64, 80]
         yticklabels = ['.{:02d}'.format(num) for num in yt]
@@ -616,7 +624,8 @@ def evaluate(test_annotation_file: str, user_submission_file: str, phase_codenam
     # metrics['MR_-2_iou75_all'] = MR_all[2]
 
     print('')
-    eval_result['day'].params.imgIds = imgIds[:1455]
+    # eval_result['day'].params.imgIds = imgIds[:1455]
+    eval_result['day'].params.imgIds = [ii for ii, img in kaistGt.imgs.items() if get_time_of_day(img['im_name']) == 'day']
     eval_result['day'].evaluate(0)
     eval_result['day'].accumulate()
     MR_day = eval_result['day'].summarize(0, subsetStr='Day')
@@ -625,7 +634,8 @@ def evaluate(test_annotation_file: str, user_submission_file: str, phase_codenam
     # metrics['MR_-2_iou75_day'] = MR_day[2]
 
     print('')
-    eval_result['night'].params.imgIds = imgIds[1455:]
+    # eval_result['night'].params.imgIds = imgIds[1455:]
+    eval_result['day'].params.imgIds = [ii for ii, img in kaistGt.imgs.items() if get_time_of_day(img['im_name']) == 'night']
     eval_result['night'].evaluate(0)
     eval_result['night'].accumulate()
     MR_night = eval_result['night'].summarize(0, subsetStr='Night')
@@ -642,8 +652,8 @@ def evaluate(test_annotation_file: str, user_submission_file: str, phase_codenam
     #     # + f'recall_all: {recall_all * 100:.2f}\n' \
     # print(msg)
 
-    return metrics
-    # return eval_result
+    # return metrics
+    return eval_result
 
 
 def draw_all(eval_results, filename='figure.jpg'):
@@ -660,19 +670,23 @@ def draw_all(eval_results, filename='figure.jpg'):
     fig, axes = plt.subplots(1, 3, figsize=(45, 10))
 
     methods = [res['all'].method for res in eval_results]
-    colors = [plt.cm.get_cmap('Paired')(ii)[:3] for ii in range(len(eval_results))]
+    colors = [plt.get_cmap('Paired')(ii)[:3] for ii in range(len(eval_results))]
 
-    eval_results_all = [res['all'].eval for res in eval_results]
-    KAISTPedEval.draw_figure(axes[0], eval_results_all, methods, colors)
-    axes[0].set_title('All')
+    try:
+        eval_results_all = [res['all'].eval for res in eval_results]
+        KAISTPedEval.draw_figure(axes[0], eval_results_all, methods, colors)
+        axes[0].set_title('All')
 
-    eval_results_day = [res['day'].eval for res in eval_results]
-    KAISTPedEval.draw_figure(axes[1], eval_results_day, methods, colors)
-    axes[1].set_title('Day')
+        eval_results_day = [res['day'].eval for res in eval_results]
+        KAISTPedEval.draw_figure(axes[1], eval_results_day, methods, colors)
+        axes[1].set_title('Day')
 
-    eval_results_night = [res['night'].eval for res in eval_results]
-    KAISTPedEval.draw_figure(axes[2], eval_results_night, methods, colors)
-    axes[2].set_title('Night')
+        eval_results_night = [res['night'].eval for res in eval_results]
+        KAISTPedEval.draw_figure(axes[2], eval_results_night, methods, colors)
+        axes[2].set_title('Night')
+
+    except Exception as e:
+        print(e)
 
     filename += '' if filename.endswith('.jpg') or filename.endswith('.png') else '.jpg'
     plt.savefig(filename)
@@ -684,7 +698,7 @@ if __name__ == "__main__":
                         help='Please put the path of the annotation file. Only support json format.')
     parser.add_argument('--rstFiles', type=str, nargs='+', default=['evaluation_script/MLPD_result.json'],
                         help='Please put the path of the result file. Only support json, txt format.')
-    parser.add_argument('--evalFig', type=str, default='KASIT_BENCHMARK.jpg',
+    parser.add_argument('--evalFig', type=str, default=None,
                         help='Please put the output path of the Miss rate versus false positive per-image (FPPI) curve')
     args = parser.parse_args()
 
@@ -692,5 +706,6 @@ if __name__ == "__main__":
     results = [evaluate(args.annFile, rstFile, phase) for rstFile in args.rstFiles]
 
     # Sort results by MR_all
-    # results = sorted(results, key=lambda x: x['all'].summarize(0), reverse=True)
-    # draw_all(results, filename=args.evalFig)
+    if args.evalFig is not None:
+        results = sorted(results, key=lambda x: x['all'].summarize(0), reverse=True)
+        draw_all(results, filename=args.evalFig)
