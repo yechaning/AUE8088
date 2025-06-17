@@ -2,7 +2,7 @@
 """
 Run YOLOv5 benchmarks on all supported export formats.
 
-Format                      | `export.py --include`         | Model
+Format                      | `export.py --include`         | Model.
 ---                         | ---                           | ---
 PyTorch                     | -                             | yolov5s.pt
 TorchScript                 | `torchscript`                 | yolov5s.torchscript
