@@ -216,6 +216,7 @@ def train(hyp, opt, device, callbacks):
         pad=0.5,
         prefix=colorstr("val: "),
         rgbt_input=opt.rgbt,
+        task='val'
     )[0]
 
     # pre-reduce anchor precision
