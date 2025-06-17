@@ -208,6 +208,7 @@ def run(
             rect=rect,
             workers=workers,
             prefix=colorstr(f"{task}: "),
+            task=task
         )[0]
 
     seen = 0
@@ -445,6 +446,10 @@ def main(opt):
         else:
             raise NotImplementedError(f'--task {opt.task} not in ("train", "val", "test", "speed", "study")')
 
+
+if __name__ == "__main__":
+    opt = parse_opt()
+    main(opt)
 
 if __name__ == "__main__":
     opt = parse_opt()
