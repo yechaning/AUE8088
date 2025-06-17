@@ -1,6 +1,6 @@
 # YOLOv5 🚀 by Ultralytics, AGPL-3.0 license
 """
-Train a YOLOv5 model on a custom dataset. Models and datasets download automatically from the latest YOLOv5 release.
+Train a YOLOv5 model on a custom dataset. Models and datasets download automatically from the latest YOLOv5 release..
 
 Usage - Single-GPU training:
     $ python train.py --data coco128.yaml --weights yolov5s.pt --img 640  # from pretrained (recommended)
